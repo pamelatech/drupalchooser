@@ -1,0 +1,4 @@
+name = Account Chooser
+description = Allows users to use http://accountchooser.com to login and register
+core = 7.x
+configure = admin/config/user-interface/chooser

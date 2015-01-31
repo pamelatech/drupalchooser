@@ -1,0 +1,121 @@
+<?php
+
+function chooser_init() {
+	//set default configuration variables for the module if needed 
+}
+
+/**
+ * Implements hook_menu(). Registers user status check
+ */
+function chooser_menu() {
+  $items['chooser/userstatus'] = array(
+    'title' => 'User Status Checker',
+    'page callback' => 'chooser_userstatus',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'file' => 'chooser.pages.inc',
+    'delivery callback' => 'drupal_json_output',
+  );
+  $items['chooser/storeaccount'] = array(
+    'title' => 'Store Account Page',
+    'page callback' => 'chooser_storeaccount',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'file' => 'chooser.pages.inc',
+    'access arguments' => 'user_is_logged_in',
+  );
+  $items['chooser/about'] = array(
+    'title' => 'This site uses Account Chooser',
+    'page callback' => 'chooser_explain',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'file' => 'chooser.pages.inc',
+  );
+  $items['admin/config/user-interface/chooser'] = array(
+    'title' => 'Account Chooser Settings',
+    'description' => 'Settings for Account Chooser.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('chooser_settings'),
+    'access arguments' => array('administer site configuration'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Calls Account Chooser and prefills form if returning with an account
+ */
+/*function chooser_form_user_register_form_alter(&$form, &$form_state) {
+  //drupal_add_js(variable_get('chooser_acjs_location', 'https://www.accountchooser.com/ac.js'), 'external');
+  drupal_add_js('https://www.accountchooser.com/ac.js', 'external');
+//  $configobject='accountchooser.CONFIG={loginUrl:"?q=user/login",signupUrl:"?q=user/register",userStatusUrl:"?q=chooser/userstatus",mode:"signup",siteDisplayNameId:"edit-mail"};';
+  //$configobject='accountchooser.CONFIG={mode:"signup"};';
+//  drupal_add_js($configobject,'inline');
+  drupal_add_js('accountchooser.CONFIG={loginUrl:"?q=user/login",signupUrl:"?q=user/register",userStatusUrl:"?q=chooser/userstatus",mode:"signup",siteDisplayNameId:"edit-name",siteEmailId:"edit-mail"};','inline');
+}
+*/
+/**
+ * hook form alter implementation.
+ */
+
+function chooser_form_alter(&$form, &$form_state, $form_id) {
+//    drupal_set_message($form_id);  // print form ID to messages
+//  drupal_set_message(print_r($form, TRUE));  // print array to messages
+  if ($form_id == "user_login_block" || $form_id == "user_login") {
+    drupal_add_js('https://www.accountchooser.com/ac.js', 'external');
+    drupal_add_js('accountchooser.CONFIG={loginUrl:"?q=user/login",signupUrl:"?q=user/register",userStatusUrl:"?q=chooser/userstatus",mode:"login",siteDisplayNameId:"edit-name",sitePasswordId:"edit-pass"};', 'inline');
+  } 
+  if ($form_id == "user_register_form") {
+    drupal_add_js('https://www.accountchooser.com/ac.js', 'external');
+    drupal_add_js('accountchooser.CONFIG={loginUrl:"?q=user/login",signupUrl:"?q=user/register",userStatusUrl:"?q=chooser/userstatus",mode:"signup",siteDisplayNameId:"edit-name",sitePasswordId:"edit-pass",siteEmailId:"edit-mail"};', 'inline');
+        watchdog('chooser','user_register_form');
+	$form['#submit'][] = 'chooser_user_register_submit';
+  	$form_state['redirect'] = 'chooser/about';
+  }
+}
+
+function chooser_user_register_submit($form, &$form_state) {
+  //Populates an explanation after the user registers so they no to expect chooser
+  watchdog('chooser','custom user register submit called');
+  $form_state['redirect'] = 'chooser/about';
+}
+
+function chooser_user_login(&$edit, $account) {
+//  if (!isset($_POST['form_id']) || $_POST['form_id'] != 'user_pass_reset' || variable_get('chooser_destination_immediate_redirect', TRUE)) {
+    drupal_goto('chooser/storeaccount');
+ // }
+}
+
+function chooser_settings() {
+  $storeevents = array(
+    'chooser_storeaccount_on_login' => t('On Login'),
+    'chooser_storeaccount_on_register' => t('On Registration')
+  );
+
+  $form['chooser_storeaccount_events'] = array(
+  '#title' => t('Update Account Chooser:'),
+  '#type' => 'checkboxes',
+  '#description' => t('Determines when the site updates the Account Chooser'),
+  '#options' => $storeevents,
+  '#default_value' => variable_get('chooser_storeaccount_events', array('chooser_storeaccount_on_login','chooser_storeaccount_on_register'))
+);
+
+  $form['chooser_acjs_location'] = array(
+    '#type' => 'textfield',
+    '#title' => t('AC.js File Location'),
+    '#default_value' => variable_get('chooser_acjs_location', 'https://www.accountchooser.com/ac.js'),
+
+    '#description' => t("Location of the Account Chooser Javascript file. Leave this alone unless you know what you are doing."),
+  );  
+
+  $form['chooser_supported_domains'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Supported Domains'),
+    '#rows' => 2,
+    '#cols' => 30,
+    '#default_value' => variable_get('chooser_supported_domains', ''),
+    '#description' => t("If you want to give the user a better chance of success and you are supporting federation, enter a comma-separated list of domains, and others will not be shown."),  
+  );
+  return system_settings_form($form);
+}
